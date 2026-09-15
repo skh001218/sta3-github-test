@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>작은 테트리스</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111;color:#fff;font:14px system-ui}
+  main{text-align:center}h1{font-size:18px;margin:0 0 8px}.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  button{border:0;border-radius:6px;padding:7px 12px;font-weight:700;cursor:pointer}canvas{display:block;border:2px solid #555;background:#080808}
+  p{margin:8px 0 0;color:#aaa;font-size:12px}
+</style>
+<main>
+  <h1>작은 테트리스</h1>
+  <div class="bar"><span>점수 <b id="score">0</b></span><button id="start">시작</button></div>
+  <canvas id="game" width="200" height="400"></canvas>
+  <p>← → 이동 · ↑ 회전 · ↓ 내리기 · Space 바로 놓기</p>
+</main>
+<script>
+const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d'),scoreEl=document.querySelector('#score');
+const W=10,H=20,S=20,colors=['','#00d9ff','#ffd500','#a855f7','#22c55e','#ef4444','#3b82f6','#f97316'];
+const shapes=[
+  [[1,1,1,1],[0,0,0,0],[0,0,0,0],[0,0,0,0]],
+  [[2,2],[2,2]],
+  [[0,3,0],[3,3,3],[0,0,0]],
+  [[0,4,4],[4,4,0],[0,0,0]],
+  [[5,5,0],[0,5,5],[0,0,0]],
+  [[6,0,0],[6,6,6],[0,0,0]],
+  [[0,0,7],[7,7,7],[0,0,0]]
+];
+let board,piece,score=0,playing=false,last=0,elapsed=0;
+
+function reset(){
+  board=Array.from({length:H},()=>Array(W).fill(0));score=0;scoreEl.textContent=0;playing=true;elapsed=0;spawn();
+}
+function spawn(){
+  const m=shapes[Math.random()*shapes.length|0].map(r=>[...r]);
+  piece={m,x:(W-m.length)/2|0,y:0};
+  if(hit(piece.m,piece.x,piece.y)){playing=false;draw();message('게임 끝');}
+}
+function hit(m,x,y){
+  return m.some((row,dy)=>row.some((v,dx)=>v&&(x+dx<0||x+dx>=W||y+dy>=H||board[y+dy]?.[x+dx])));
+}
+function move(dx,dy){
+  if(!playing)return false;
+  if(!hit(piece.m,piece.x+dx,piece.y+dy)){piece.x+=dx;piece.y+=dy;return true}
+  if(dy){lock();return false}return false;
+}
+function lock(){
+  piece.m.forEach((row,dy)=>row.forEach((v,dx)=>{if(v)board[piece.y+dy][piece.x+dx]=v}));
+  clearLines();spawn();
+}
+function clearLines(){
+  for(let y=H-1;y>=0;y--)if(board[y].every(Boolean)){board.splice(y,1);board.unshift(Array(W).fill(0));score+=100;scoreEl.textContent=score;y++}
+}
+function rotate(){
+  if(!playing)return;
+  const r=piece.m[0].map((_,i)=>piece.m.map(row=>row[i]).reverse());
+  for(const n of [0,-1,1,-2,2])if(!hit(r,piece.x+n,piece.y)){piece.m=r;piece.x+=n;break}
+}
+function drawCell(x,y,v){ctx.fillStyle=colors[v];ctx.fillRect(x*S+1,y*S+1,S-2,S-2)}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  board.forEach((row,y)=>row.forEach((v,x)=>v&&drawCell(x,y,v)));
+  if(piece)piece.m.forEach((row,dy)=>row.forEach((v,dx)=>v&&drawCell(piece.x+dx,piece.y+dy,v)));
+}
+function message(text){ctx.fillStyle='#000b';ctx.fillRect(0,175,200,50);ctx.fillStyle='#fff';ctx.font='bold 18px system-ui';ctx.textAlign='center';ctx.fillText(text,100,207)}
+function loop(t=0){
+  const dt=t-last;last=t;
+  if(playing){elapsed+=dt;if(elapsed>500){move(0,1);elapsed=0}draw()}
+  requestAnimationFrame(loop);
+}
+document.querySelector('#start').onclick=reset;
+addEventListener('keydown',e=>{
+  if(['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key))e.preventDefault();
+  if(e.key==='ArrowLeft')move(-1,0);if(e.key==='ArrowRight')move(1,0);if(e.key==='ArrowDown')move(0,1);
+  if(e.key==='ArrowUp')rotate();if(e.key===' '&&playing){while(move(0,1));}
+  draw();
+});
+board=Array.from({length:H},()=>Array(W).fill(0));draw();message('시작을 누르세요');loop();
+</script>
+</html>
